@@ -18,13 +18,19 @@ namespace Sample
         m_command.buildMasks(registry);
         m_steering.buildMasks(registry);
         m_navGridBuilder.buildMasks(registry);
+        {
+            NavGridBuilderSystem::Config cfg;
+            cfg.extraInflation = 2.5f;
+            m_navGridBuilder.setConfig(cfg);
+        }
         m_pathfinding.buildMasks(registry);
         m_movement.buildMasks(registry);
         m_spatialIndex.buildMasks(registry);
         m_localAvoidance.buildMasks(registry);
         m_combat.buildMasks(registry);
         m_combat.setSpatialIndex(&m_spatialIndex);
-        m_characterAnim.buildMasks(registry);
+        m_locomotionAnim.buildMasks(registry);
+        m_animPlayback.buildMasks(registry);
         m_poseUpdate.buildMasks(registry);
         m_renderModel.buildMasks(registry);
 
@@ -66,19 +72,22 @@ namespace Sample
         // 8. Movement integration (uses velocity produced by steering+avoidance)
         m_movement.update(ecs, dtSeconds);
 
-        // 9. Animation selection
-        m_characterAnim.update(ecs, dtSeconds);
+        // 9. Animation selection (sample policy)
+        m_locomotionAnim.update(ecs, dtSeconds);
 
-        // 10. Pose update
+        // 10. Animation playback (engine)
+        m_animPlayback.update(ecs, dtSeconds);
+
+        // 11. Pose update
         m_poseUpdate.update(ecs, dtSeconds);
 
-        // 11. Render
+        // 12. Render
         m_renderModel.update(ecs, dtSeconds);
     }
 
     void SystemRunner::SetAssetManager(Engine::AssetManager *assets)
     {
-        m_characterAnim.setAssetManager(assets);
+        m_animPlayback.setAssetManager(assets);
         m_poseUpdate.setAssetManager(assets);
         m_renderModel.setAssetManager(assets);
         m_combat.setAssetManager(assets);

@@ -2,17 +2,18 @@
 
 #include "ECS/ECSContext.h"
 
-#include "systems/CommandSystem.h"
-#include "systems/SteeringSystem.h"
-#include "systems/NavGrid.h"
-#include "systems/NavGridBuilderSystem.h"
-#include "systems/PathfindingSystem.h"
-#include "systems/MovementSystem.h"
-#include "systems/CharacterAnimationSystem.h"
-#include "systems/PoseUpdateSystem.h"
-#include "systems/RenderSystem.h"
-#include "systems/SpatialIndexSystem.h"
-#include "systems/LocalAvoidanceSystem.h"
+#include "ECS/systems/CommandSystem.h"
+#include "ECS/systems/SteeringSystem.h"
+#include "ECS/systems/NavGrid.h"
+#include "ECS/systems/NavGridBuilderSystem.h"
+#include "ECS/systems/PathfindingSystem.h"
+#include "ECS/systems/MovementSystem.h"
+#include "systems/LocomotionAnimationControllerSystem.h"
+#include "ECS/systems/Animation/AnimationPlaybackSystem.h"
+#include "ECS/systems/PoseUpdateSystem.h"
+#include "ECS/systems/RenderSystem.h"
+#include "ECS/systems/SpatialIndexSystem.h"
+#include "ECS/systems/LocalAvoidanceSystem.h"
 #include "systems/CombatSystem.h"
 
 namespace Engine
@@ -56,7 +57,8 @@ namespace Sample
         LocalAvoidanceSystem m_localAvoidance{&m_spatialIndex};
         CombatSystem m_combat;
 
-        CharacterAnimationSystem m_characterAnim;
+        LocomotionAnimationControllerSystem m_locomotionAnim;
+        AnimationPlaybackSystem m_animPlayback;
 
         PoseUpdateSystem m_poseUpdate;
 

@@ -12,7 +12,9 @@
         "Facing",
         "Path",
         "Team",
-        "AttackCooldown"
+        "AttackCooldown",
+        "LocomotionClips",
+        "CombatClips"
     ],
     "defaults": {
         "Position": {
@@ -67,6 +69,19 @@
         "AttackCooldown": {
             "timer": 0.0,
             "interval": 1.5
+        },
+        "LocomotionClips": {
+            "idleClip": 65,
+            "walkClip": 112,
+            "runClip": 28
+        },
+        "CombatClips": {
+            "attackStart": 36,
+            "attackEnd": 43,
+            "damageStart": 52,
+            "damageEnd": 56,
+            "deathStart": 61,
+            "deathEnd": 64
         }
     },
     "visual": {

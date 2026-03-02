@@ -11,7 +11,8 @@
         "AvoidanceParams",
         "RenderMesh",
         "Facing",
-        "Path"
+        "Path",
+        "LocomotionClips"
     ],
     "defaults": {
         "Position": {
@@ -59,7 +60,12 @@
         "Facing": {
             "yaw": 0.0
         },
-        "Path": {}
+        "Path": {},
+        "LocomotionClips": {
+            "idleClip": 65,
+            "walkClip": 112,
+            "runClip": 28
+        }
     },
     "visual": {
         "model": "assets/Knight/Knight.smodel"
