@@ -176,7 +176,8 @@ namespace Sample
             for (const auto &obs : j["obstacles"])
             {
                 std::string prefabName = obs.value("prefab", "");
-                if (prefabName.empty()) continue;
+                if (prefabName.empty())
+                    continue;
 
                 const Engine::ECS::Prefab *prefab = ecs.prefabs.get(prefabName);
                 if (!prefab)
@@ -188,21 +189,37 @@ namespace Sample
                 // Line parameters
                 float sx = 0.0f, sz = 0.0f;
                 float ex = 0.0f, ez = 0.0f;
-                if (obs.contains("start")) { sx = obs["start"].value("x", 0.0f); sz = obs["start"].value("z", 0.0f); }
-                if (obs.contains("end"))   { ex = obs["end"].value("x", 0.0f);   ez = obs["end"].value("z", 0.0f); }
-                
+                if (obs.contains("start"))
+                {
+                    sx = obs["start"].value("x", 0.0f);
+                    sz = obs["start"].value("z", 0.0f);
+                }
+                if (obs.contains("end"))
+                {
+                    ex = obs["end"].value("x", 0.0f);
+                    ez = obs["end"].value("z", 0.0f);
+                }
+
                 float spacing = obs.value("spacing", 2.0f);
-                if (spacing <= 0.1f) spacing = 0.1f;
+                if (spacing <= 0.1f)
+                    spacing = 0.1f;
 
                 // Gaps
-                struct Gap { float gx, gz, w; };
+                struct Gap
+                {
+                    float gx, gz, w;
+                };
                 std::vector<Gap> gaps;
                 if (obs.contains("gaps") && obs["gaps"].is_array())
                 {
                     for (const auto &g : obs["gaps"])
                     {
                         float gx = 0.0f, gz = 0.0f, w = 0.0f;
-                        if (g.contains("center")) { gx = g["center"].value("x", 0.0f); gz = g["center"].value("z", 0.0f); }
+                        if (g.contains("center"))
+                        {
+                            gx = g["center"].value("x", 0.0f);
+                            gz = g["center"].value("z", 0.0f);
+                        }
                         w = g.value("width", 0.0f);
                         gaps.push_back({gx, gz, w});
                     }
@@ -211,21 +228,22 @@ namespace Sample
                 // Calculate wall
                 float dx = ex - sx;
                 float dz = ez - sz;
-                float len = std::sqrt(dx*dx + dz*dz);
-                
+                float len = std::sqrt(dx * dx + dz * dz);
+
                 // Normal direction
                 float ndx = (len > 1e-4f) ? dx / len : 0.0f;
                 float ndz = (len > 1e-4f) ? dz / len : 0.0f;
 
                 int count = static_cast<int>(std::floor(len / spacing));
-                // Add one for the end post? Usually walls are segments. 
+                // Add one for the end post? Usually walls are segments.
                 // Let's do points along the line.
                 // If we want to cover start to end inclusive:
-                
+
                 for (int i = 0; i <= count; ++i)
                 {
                     float t = static_cast<float>(i) * spacing;
-                    if (t > len) break; // Should not happen with <= count
+                    if (t > len)
+                        break; // Should not happen with <= count
 
                     float px = sx + ndx * t;
                     float pz = sz + ndz * t;
@@ -241,7 +259,7 @@ namespace Sample
                         // Assuming gaps are circular or just "near" the point.
                         // Width implies linear gap along the wall.
                         // Check distance to gap center <= width/2.
-                        float distSq = gdx*gdx + gdz*gdz;
+                        float distSq = gdx * gdx + gdz * gdz;
                         if (distSq <= (g.w * 0.5f) * (g.w * 0.5f))
                         {
                             inGap = true;
@@ -249,10 +267,11 @@ namespace Sample
                         }
                     }
 
-                    if (inGap) continue;
+                    if (inGap)
+                        continue;
 
-                    // Spawn
-                    Engine::ECS::SpawnResult res = Engine::ECS::spawnFromPrefab(*prefab, ecs.components, ecs.archetypes, ecs.stores, ecs.entities);
+                    // Spawn (ECSContext overload marks the row dirty so pose/world caches initialize)
+                    Engine::ECS::SpawnResult res = Engine::ECS::spawnFromPrefab(*prefab, ecs);
                     Engine::ECS::ArchetypeStore *store = ecs.stores.get(res.archetypeId);
                     if (store && store->hasPosition())
                     {
@@ -260,7 +279,10 @@ namespace Sample
                         p.x = px;
                         p.y = 0.0f;
                         p.z = pz;
-                        
+
+                        // We mutated Position after defaults; ensure dirty-driven systems see it.
+                        ecs.markDirty(ecs.components.ensureId("Position"), res.archetypeId, res.row);
+
                         // Facing? Maybe random rotation for variety? Or align with wall?
                         // Prefab default is 0. Leaves it as is.
                     }
@@ -299,6 +321,9 @@ namespace Sample
                       << " spacingM=" << spacingM
                       << " jitterM=" << sg.jitterM << "\n";
 
+            const uint32_t positionId = ecs.components.ensureId("Position");
+            const uint32_t facingId = ecs.components.ensureId("Facing");
+
             for (int i = 0; i < sg.count; ++i)
             {
                 float x = sg.originX;
@@ -321,6 +346,9 @@ namespace Sample
                 p.y = 0.0f;
                 p.z = z;
 
+                // We mutated Position post-spawn; ensure dirty-driven systems see it.
+                ecs.markDirty(positionId, res.archetypeId, res.row);
+
                 // Set team if specified
                 if (sg.team >= 0 && store->hasTeam())
                 {
@@ -332,6 +360,9 @@ namespace Sample
                 {
                     const float PI = 3.14159265358979f;
                     store->facings()[res.row].yaw = sg.facingYawDeg * PI / 180.0f;
+
+                    // Keep RenderTransform (and any other dirty-driven systems) in sync.
+                    ecs.markDirty(facingId, res.archetypeId, res.row);
                 }
 
                 if (selectSpawned)

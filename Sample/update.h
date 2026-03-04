@@ -8,6 +8,7 @@
 #include "ECS/systems/NavGridBuilderSystem.h"
 #include "ECS/systems/PathfindingSystem.h"
 #include "ECS/systems/MovementSystem.h"
+#include "ECS/systems/RenderTransformUpdateSystem.h"
 #include "systems/LocomotionAnimationControllerSystem.h"
 #include "ECS/systems/Animation/AnimationPlaybackSystem.h"
 #include "ECS/systems/PoseUpdateSystem.h"
@@ -48,6 +49,7 @@ namespace Sample
         CommandSystem m_command;
         SteeringSystem m_steering;
         MovementSystem m_movement;
+        RenderTransformUpdateSystem m_renderTransform;
 
         NavGrid m_navGrid;
         NavGridBuilderSystem m_navGridBuilder{&m_navGrid};

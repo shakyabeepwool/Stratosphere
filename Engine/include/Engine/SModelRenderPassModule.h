@@ -34,18 +34,27 @@ namespace Engine
 
         void setCamera(Camera *cam) { m_camera = cam; }
 
-        // Per-instance world transforms for instanced drawing.
-        // If not called (or count==0), the module defaults to drawing 1 instance at identity.
-        void setInstances(const glm::mat4 *instanceWorlds, uint32_t count);
+        struct UploadRange
+        {
+            uint32_t firstInstance = 0;
+            uint32_t instanceCount = 0;
+        };
 
-        // Per-instance node global matrices, flattened as [instance][node].
-        // Must be called when using per-entity animation (palette indexed by gl_InstanceIndex).
-        void setNodePalette(const glm::mat4 *nodeGlobals, uint32_t instanceCount, uint32_t nodeCount);
+        // Authoritative instance count for the next draw.
+        void setInstanceCount(uint32_t count) { m_instanceCount = count; }
+        uint32_t getInstanceCount() const { return m_instanceCount; }
 
-        // Per-instance joint matrices, flattened as [instance][joint].
-        // Joint indices in the vertex stream are local to a skin; the shader uses push constants
-        // to offset into this global joint palette.
-        void setJointPalette(const glm::mat4 *jointMatrices, uint32_t instanceCount, uint32_t jointCount);
+        // Prepare per-frame GPU uploads for this model.
+        // - Buffers are persistently mapped; this performs partial memcpy into the mapped regions.
+        // - If forceFullUpload is true (or a buffer is reallocated), full arrays are copied.
+        void prepareFrameUploads(
+            uint32_t frameIndex,
+            const glm::mat4 *instanceWorlds, uint32_t instanceCount,
+            const glm::mat4 *nodePalette, uint32_t nodeCount,
+            const glm::mat4 *jointPalette, uint32_t jointStride,
+            const UploadRange *dirtyWorldRanges, uint32_t dirtyWorldRangeCount,
+            const UploadRange *dirtyPoseRanges, uint32_t dirtyPoseRangeCount,
+            bool forceFullUpload);
 
         // Column-major 4x4 matrix (16 floats). Defaults to identity.
         void setModelMatrix(const float *m16);
@@ -54,6 +63,8 @@ namespace Engine
         void record(FrameContext &frameCtx, VkCommandBuffer cmd) override;
         void onResize(VulkanContext &ctx, VkExtent2D newExtent) override;
         void onDestroy(VulkanContext &ctx) override;
+
+        uint32_t getResourceGeneration() const { return m_resourceGeneration; }
 
     private:
         struct InstanceFrame
@@ -102,6 +113,7 @@ namespace Engine
         {
             VkBuffer buffer = VK_NULL_HANDLE;
             VkDeviceMemory memory = VK_NULL_HANDLE;
+            void *mapped = nullptr;
             VkDescriptorSet set = VK_NULL_HANDLE;
 
             VkBuffer paletteBuffer = VK_NULL_HANDLE;
@@ -158,14 +170,9 @@ namespace Engine
         std::unordered_map<uint64_t, VkDescriptorSet> m_materialSetCache;
 
         std::vector<InstanceFrame> m_instanceFrames;
-        std::vector<glm::mat4> m_instanceWorlds;
 
-        // Flattened node globals uploaded to a per-frame SSBO
-        std::vector<glm::mat4> m_nodePalette;
-        std::vector<glm::mat4> m_jointPalette;
-        uint32_t m_jointPaletteJointCount = 0;
-        uint32_t m_paletteInstanceCount = 0;
-        uint32_t m_paletteNodeCount = 0;
+        uint32_t m_instanceCount = 0;
+        uint32_t m_resourceGeneration = 0;
 
         TextureAsset m_fallbackWhiteTexture;
 

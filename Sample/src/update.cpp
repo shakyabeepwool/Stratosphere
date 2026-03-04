@@ -25,6 +25,7 @@ namespace Sample
         }
         m_pathfinding.buildMasks(registry);
         m_movement.buildMasks(registry);
+        m_renderTransform.buildMasks(registry);
         m_spatialIndex.buildMasks(registry);
         m_localAvoidance.buildMasks(registry);
         m_combat.buildMasks(registry);
@@ -72,16 +73,19 @@ namespace Sample
         // 8. Movement integration (uses velocity produced by steering+avoidance)
         m_movement.update(ecs, dtSeconds);
 
-        // 9. Animation selection (sample policy)
+        // 9. Render transforms (world matrix + version for render caching)
+        m_renderTransform.update(ecs, dtSeconds);
+
+        // 10. Animation selection (sample policy)
         m_locomotionAnim.update(ecs, dtSeconds);
 
-        // 10. Animation playback (engine)
+        // 11. Animation playback (engine)
         m_animPlayback.update(ecs, dtSeconds);
 
-        // 11. Pose update
+        // 12. Pose update
         m_poseUpdate.update(ecs, dtSeconds);
 
-        // 12. Render
+        // 13. Render
         m_renderModel.update(ecs, dtSeconds);
     }
 
