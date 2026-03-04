@@ -593,17 +593,16 @@ namespace Engine
             const uint32_t prevFrame = (m_currentFrame + m_maxFrames - 1) % m_maxFrames;
             const uint32_t prevStartQuery = prevFrame * 2;
             uint64_t timestamps[2] = {0, 0};
-            
+
             VkResult queryResult = vkGetQueryPoolResults(
                 m_device,
                 m_timestampQueryPool,
                 prevStartQuery,
-                2,  // Query count
+                2, // Query count
                 sizeof(timestamps),
                 timestamps,
                 sizeof(uint64_t),
-                VK_QUERY_RESULT_64_BIT
-            );
+                VK_QUERY_RESULT_64_BIT);
 
             if (queryResult == VK_SUCCESS && timestamps[1] > timestamps[0])
             {
@@ -611,7 +610,7 @@ namespace Engine
                 // timestampPeriod is in nanoseconds per tick
                 const uint64_t ticksDelta = timestamps[1] - timestamps[0];
                 const float nanoseconds = static_cast<float>(ticksDelta) * m_timestampPeriod;
-                m_gpuTimeMs = nanoseconds / 1000000.0f;  // Convert ns to ms
+                m_gpuTimeMs = nanoseconds / 1000000.0f; // Convert ns to ms
             }
         }
 
@@ -628,6 +627,20 @@ namespace Engine
         vkQueuePresentKHR(m_presentQueue, &presentInfo);
         // Advance frame index
         m_currentFrame = (m_currentFrame + 1) % m_maxFrames;
+    }
+
+    bool Renderer::waitForCurrentFrameFence()
+    {
+        if (!m_initialized)
+            return false;
+        if (m_frames.empty())
+            return false;
+        if (m_currentFrame >= m_frames.size())
+            return false;
+
+        FrameContext &frame = m_frames[m_currentFrame];
+        VkResult r = vkWaitForFences(m_device, 1, &frame.inFlightFence, VK_TRUE, UINT64_MAX);
+        return r == VK_SUCCESS;
     }
 
     void Renderer::destroySyncObjects()

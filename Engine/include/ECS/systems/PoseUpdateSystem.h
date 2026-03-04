@@ -32,6 +32,8 @@ public:
         if (!m_assets)
             return;
 
+        ++m_frameCounter;
+
         if (m_queryId == Engine::ECS::QueryManager::InvalidQuery)
         {
             Engine::ECS::ComponentMask dirty;
@@ -65,6 +67,10 @@ public:
                 const Engine::ModelHandle handle = renderModels[row].handle;
                 Engine::ModelAsset *asset = m_assets->getModel(handle);
                 auto &out = posePalettes[row];
+
+                // Any write to the palette counts as a new version.
+                out.poseVersion += 1u;
+                out.lastUpdatedFrame = m_frameCounter;
 
                 if (!asset || asset->nodes.empty())
                 {
@@ -131,4 +137,6 @@ private:
     std::vector<glm::mat4> m_localsScratch;
     std::vector<glm::mat4> m_globalsScratch;
     std::vector<uint8_t> m_visitedScratch;
+
+    uint32_t m_frameCounter = 0;
 };

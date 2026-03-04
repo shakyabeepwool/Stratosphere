@@ -177,6 +177,12 @@ namespace Engine::ECS
                 p.signature.set(ppId);
                 if (p.defaults.find(ppId) == p.defaults.end())
                     p.defaults.emplace(ppId, PosePalette{});
+
+                // Render-side transform cache (world matrix + version).
+                const uint32_t rtId = registry.ensureId("RenderTransform");
+                p.signature.set(rtId);
+                if (p.defaults.find(rtId) == p.defaults.end())
+                    p.defaults.emplace(rtId, RenderTransform{});
             }
         }
 

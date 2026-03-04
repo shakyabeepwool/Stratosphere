@@ -45,6 +45,16 @@ namespace Engine
         VkRenderPass getMainRenderPass() const { return m_mainRenderPass; }
         VkExtent2D getExtent() const { return m_extent; }
 
+        // Index of the frame slot that will be used by the next drawFrame() call.
+        uint32_t getCurrentFrameIndex() const { return m_currentFrame; }
+
+        // Number of per-frame slots (frames in flight) owned by the renderer.
+        uint32_t getMaxFramesInFlight() const { return m_maxFrames; }
+
+        // Wait for the current frame slot to become available (its in-flight fence is signaled).
+        // Useful when preparing per-frame uploads *before* calling drawFrame().
+        bool waitForCurrentFrameFence();
+
         // Set a callback for rendering ImGui (called after all render pass modules)
         using ImGuiRenderCallback = std::function<void(VkCommandBuffer)>;
         void setImGuiRenderCallback(ImGuiRenderCallback callback) { m_imguiRenderCallback = callback; }
@@ -85,8 +95,8 @@ namespace Engine
 
         // GPU timestamp query support
         VkQueryPool m_timestampQueryPool = VK_NULL_HANDLE;
-        float m_timestampPeriod = 1.0f;  // Nanoseconds per timestamp tick
-        float m_gpuTimeMs = 0.0f;        // Last measured GPU time in milliseconds
+        float m_timestampPeriod = 1.0f; // Nanoseconds per timestamp tick
+        float m_gpuTimeMs = 0.0f;       // Last measured GPU time in milliseconds
         bool m_timestampsSupported = false;
 
     private:

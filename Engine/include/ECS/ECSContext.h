@@ -100,6 +100,10 @@ namespace Engine::ECS
                 dstStore->renderAnimations()[dstRow] = srcStore->renderAnimations()[srcRow];
             if (srcStore->hasFacing() && dstStore->hasFacing())
                 dstStore->facings()[dstRow] = srcStore->facings()[srcRow];
+            if (srcStore->hasRenderTransform() && dstStore->hasRenderTransform())
+                dstStore->renderTransforms()[dstRow] = srcStore->renderTransforms()[srcRow];
+            if (srcStore->hasPosePalette() && dstStore->hasPosePalette())
+                dstStore->posePalettes()[dstRow] = srcStore->posePalettes()[srcRow];
 
             // Update mapping for moved entity first (so the source destroy can't leave it stale).
             entities.attach(e, dstArchetypeId, dstRow);

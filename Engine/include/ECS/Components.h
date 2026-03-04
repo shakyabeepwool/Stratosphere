@@ -181,6 +181,14 @@ namespace Engine::ECS
         float yaw = 0.0f; // Rotation around Y axis in radians
     };
 
+    // Render-side cached world transform.
+    // Updated by a dedicated system from Position (+ optional Facing).
+    struct RenderTransform
+    {
+        glm::mat4 world{1.0f};
+        uint32_t transformVersion = 0; // monotonic; wrap is OK
+    };
+
     // Cached pose palettes computed by PoseUpdateSystem.
     // nodePalette: one matrix per node in the model.
     // jointPalette: one matrix per joint across all skins in the model (flattened).
@@ -190,6 +198,13 @@ namespace Engine::ECS
         std::vector<glm::mat4> jointPalette;
         uint32_t nodeCount = 0;
         uint32_t jointCount = 0;
+
+        // Monotonic version incremented when PoseUpdateSystem recomputes this pose.
+        // Wrap is fine; render-side compares for inequality.
+        uint32_t poseVersion = 0;
+
+        // Optional debugging aid (local frame counter from PoseUpdateSystem).
+        uint32_t lastUpdatedFrame = 0;
     };
 
     // -----------------------
@@ -210,7 +225,7 @@ namespace Engine::ECS
     };
 
     // Typed defaults per component ID (used by Prefabs/Stores).
-    using DefaultValue = std::variant<Position, Velocity, Health, MoveTarget, MoveSpeed, Radius, Separation, AvoidanceParams, RenderModel, LocomotionClips, CombatClips, RenderAnimation, Facing, ObstacleRadius, Path, PosePalette, Team, AttackCooldown>;
+    using DefaultValue = std::variant<Position, Velocity, Health, MoveTarget, MoveSpeed, Radius, Separation, AvoidanceParams, RenderModel, LocomotionClips, CombatClips, RenderAnimation, Facing, RenderTransform, ObstacleRadius, Path, PosePalette, Team, AttackCooldown>;
     // -----------------------
     // Component Registry
     // -----------------------
