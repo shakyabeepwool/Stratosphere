@@ -40,7 +40,12 @@ public:
         auto dist2 = [](float x, float z)
         { return x * x + z * z; };
 
-        const float arrivalRadius2 = 0.25f;    // 0.5^2
+        // Final target handling:
+        // - Small stop radius prevents ping-pong.
+        // - Slow radius provides smooth deceleration near goal.
+        const float stopRadius2 = 0.04f; // 0.2^2
+        const float slowRadius = 2.0f;   // meters
+        const float slowRadius2 = slowRadius * slowRadius;
         const float waypointRadius2 = 0.0625f; // 0.25^2
 
         const auto &q = ecs.queries.get(m_queryId);
@@ -61,6 +66,12 @@ public:
             auto &speeds = const_cast<std::vector<Engine::ECS::MoveSpeed> &>(store.moveSpeeds());
             auto &paths = const_cast<std::vector<Engine::ECS::Path> &>(store.paths());
             auto &facings = const_cast<std::vector<Engine::ECS::Facing> &>(store.facings());
+
+            // Optional components: used to decide when a unit should consider itself "arrived".
+            const bool hasRadius = store.hasRadius();
+            const bool hasSep = store.hasSeparation();
+            const auto &radii = store.radii();
+            const auto &seps = store.separations();
 
             const uint32_t n = store.size();
 
@@ -94,7 +105,23 @@ public:
                 float dz = tz - pos.z;
                 float d2 = dist2(dx, dz);
 
-                float radiusToCheck2 = isFinal ? arrivalRadius2 : waypointRadius2;
+                // For the final target, accept a larger radius based on footprint so units don't
+                // fight local avoidance forever trying to hit an exact point.
+                float radiusToCheck2 = waypointRadius2;
+                if (isFinal)
+                {
+                    const float r = (hasRadius && i < radii.size()) ? std::max(0.0f, radii[i].r) : 0.0f;
+                    const float s = (hasSep && i < seps.size()) ? std::max(0.0f, seps[i].value) : 0.0f;
+                    const float inflated = r + s;
+
+                    // Clamp to slowRadius so we don't accept from too far away.
+                    // NOTE: Using a footprint-based acceptance radius prevents units from
+                    // fighting local avoidance forever trying to reach an exact point.
+                    // The 1.25x factor gives a small buffer for avoidance displacement.
+                    const float acceptR = std::max(0.35f, std::min(slowRadius, 2.5f * inflated));
+                    const float acceptR2 = acceptR * acceptR;
+                    radiusToCheck2 = std::max(stopRadius2, acceptR2);
+                }
 
                 if (d2 <= radiusToCheck2)
                 {
@@ -142,6 +169,13 @@ public:
                     dz *= invDist;
 
                     float speed = spd.value;
+
+                    // Smooth arrival toward the final target.
+                    if (isFinal && d2 < slowRadius2)
+                    {
+                        const float t = std::max(0.0f, std::min(dist / std::max(slowRadius, 1e-4f), 1.0f));
+                        speed *= t;
+                    }
 
                     float targetVx = dx * speed;
                     float targetVz = dz * speed;

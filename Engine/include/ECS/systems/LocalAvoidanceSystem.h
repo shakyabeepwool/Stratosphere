@@ -150,16 +150,27 @@ public:
                 const float prefSpeed2 = vPrefX * vPrefX + vPrefZ * vPrefZ;
                 const float prefSpeed = (prefSpeed2 > 1e-12f) ? std::sqrt(prefSpeed2) : 0.0f;
 
+                const bool hasActiveTarget = (targetsPtr && (*targetsPtr)[row].active);
+
+                // Settle mode:
+                // If there is no active target, we want units to become fully stable.
+                // That means: do NOT apply soft "keep-apart" falloff or predictive terms,
+                // and only resolve true penetrations (actual overlaps beyond a small tolerance).
+                const bool settleMode = (!hasActiveTarget);
+
+                // Overlap tolerance (meters). Small value prevents endless micro-corrections.
+                constexpr float kPenetrationEps = 0.05f;
+
                 const float horizon = std::max(0.0f, ap.predictionTime);
                 const float nearGoalRadius = std::max(ap.nearGoalRadius, 1e-3f);
                 const float interactSlack = ap.interactSlack;
-                const float falloffWeight = ap.falloffWeight;
-                const float predictiveWeight = ap.predictiveWeight;
+                const float falloffWeight = settleMode ? 0.0f : ap.falloffWeight;
+                const float predictiveWeight = settleMode ? 0.0f : ap.predictiveWeight;
                 const float pressureBoost = std::max(0.0f, ap.pressureBoost);
                 const float maxStopSpeed = std::max(0.0f, ap.maxStopSpeed);
 
                 float arrivalBoost = 1.0f;
-                if (targetsPtr && (*targetsPtr)[row].active)
+                if (hasActiveTarget)
                 {
                     const auto &tgt = (*targetsPtr)[row];
                     const float dx = tgt.x - p.x;
@@ -168,7 +179,7 @@ public:
                     const float t = clamp(1.0f - (dist / nearGoalRadius), 0.0f, 1.0f);
                     arrivalBoost = 1.0f + std::max(0.0f, ap.nearGoalBoost) * t;
                 }
-                else if (prefSpeed <= 1e-4f)
+                else if (!settleMode && prefSpeed <= 1e-4f)
                 {
                     arrivalBoost = std::max(0.0f, ap.stoppedBoost);
                 }
@@ -240,7 +251,7 @@ public:
 
                     const float fall = clamp(1.0f - (dist / std::max(interactDist, 1e-4f)), 0.0f, 1.0f);
                     const float penetration = desiredDist - dist;
-                    if (penetration > 0.0f)
+                    if (penetration > kPenetrationEps)
                     {
                         const float w = clamp(penetration / std::max(desiredDist, 1e-4f), 0.0f, 1.0f);
                         accDirX += awayX * w;
@@ -295,7 +306,6 @@ public:
 
                 if (!hasPressure && (std::fabs(accDirX) + std::fabs(accDirZ) < 1e-6f))
                 {
-                    const bool hasActiveTarget = (targetsPtr && (*targetsPtr)[row].active);
                     if (!hasActiveTarget)
                     {
                         v.x = 0.0f;
@@ -361,6 +371,18 @@ public:
                 const float t = clamp(ap.blend, 0.0f, 1.0f);
                 v.x = lerp(vPrefX, vNewX, t);
                 v.z = lerp(vPrefZ, vNewZ, t);
+
+                // If we're stopped (no target) and avoidance produced only a tiny velocity,
+                // snap to rest so units stop visibly drifting.
+                if (!hasActiveTarget)
+                {
+                    const float s2 = v.x * v.x + v.z * v.z;
+                    if (s2 < 0.0004f) // (0.02 m/s)^2
+                    {
+                        v.x = 0.0f;
+                        v.z = 0.0f;
+                    }
+                }
 
                 ecs.markDirty(m_velocityId, archetypeId, row);
             }

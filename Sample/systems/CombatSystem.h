@@ -248,6 +248,15 @@ private:
     std::vector<StopAction> m_stops;
     std::vector<Engine::ECS::Entity> m_newlyDead;
 
+    struct UnitCombatMemory
+    {
+        Engine::ECS::Entity targetEnemy{};
+        bool engaged = false;
+        uint32_t lastSeenFrame = 0;
+    };
+    std::unordered_map<uint64_t, UnitCombatMemory> m_unitMem;
+    uint32_t m_frameCounter = 0;
+
     std::mt19937 m_rng;
     std::uniform_real_distribution<float> m_unitDist{0.0f, 1.0f};
     std::uniform_real_distribution<float> m_realDist{-1.0f, 1.0f};

@@ -40,23 +40,23 @@
             "value": 5.0
         },
         "Radius": {
-            "r": 5.0
+            "r": 1.5
         },
         "Separation": {
-            "value": 3.0
+            "value": 1.0
         },
         "AvoidanceParams": {
-            "strength": 20.0,
-            "maxAccel": 60.0,
-            "blend": 0.80,
+            "strength": 3.5,
+            "maxAccel": 30.0,
+            "blend": 0.6,
             "predictionTime": 0.55,
-            "nearGoalRadius": 2.0,
-            "nearGoalBoost": 2.5,
-            "stoppedBoost": 2.0,
-            "pressureBoost": 1.5,
             "interactSlack": 0.35,
             "falloffWeight": 0.35,
             "predictiveWeight": 0.75,
+            "pressureBoost": 1.5,
+            "nearGoalRadius": 2.0,
+            "nearGoalBoost": 2.5,
+            "stoppedBoost": 2.0,
             "maxStopSpeed": 0.9
         },
         "Facing": {

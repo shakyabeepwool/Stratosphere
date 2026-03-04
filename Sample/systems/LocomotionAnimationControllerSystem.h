@@ -33,9 +33,12 @@ public:
 
     void update(Engine::ECS::ECSContext &ecs, float /*dt*/) override
     {
-        // Velocity threshold to consider entity as "moving"
-        constexpr float kVelocityThreshold = 0.10f;
-        constexpr float kVelocityThreshold2 = kVelocityThreshold * kVelocityThreshold;
+        // Use hysteresis so tiny avoidance-induced velocity noise doesn't flip
+        // between idle/run every other frame (visible as pose snapping).
+        constexpr float kStartMoveSpeed = 0.25f; // start moving above this
+        constexpr float kStopMoveSpeed = 0.12f;  // stop moving below this
+        constexpr float kStartMoveSpeed2 = kStartMoveSpeed * kStartMoveSpeed;
+        constexpr float kStopMoveSpeed2 = kStopMoveSpeed * kStopMoveSpeed;
 
         if (m_queryId == Engine::ECS::QueryManager::InvalidQuery)
         {
@@ -74,14 +77,20 @@ public:
                     continue;
 
                 const auto &v = vels[row];
-                const float speed2 = v.x * v.x + v.y * v.y + v.z * v.z;
-                const bool isMoving = (speed2 > kVelocityThreshold2);
+                // Gameplay movement is on XZ plane; ignore any small Y jitter.
+                const float speed2 = v.x * v.x + v.z * v.z;
+
+                const uint32_t runClip = hasLoco ? (*loco)[row].runClip : anim.clipIndex;
+                const uint32_t idleClip = hasLoco ? (*loco)[row].idleClip : anim.clipIndex;
+
+                const bool wasMoving = (hasLoco && anim.clipIndex == runClip);
+                const bool isMoving = wasMoving ? (speed2 > kStopMoveSpeed2) : (speed2 > kStartMoveSpeed2);
 
                 bool changed = false;
 
                 if (hasLoco)
                 {
-                    const uint32_t desiredClip = isMoving ? (*loco)[row].runClip : (*loco)[row].idleClip;
+                    const uint32_t desiredClip = isMoving ? runClip : idleClip;
                     if (anim.clipIndex != desiredClip)
                     {
                         anim.clipIndex = desiredClip;
@@ -90,12 +99,11 @@ public:
                     }
                 }
 
-                const bool desiredPlaying = isMoving;
-                if (anim.playing != desiredPlaying)
+                // Keep locomotion always playing so idle can animate naturally
+                // and PoseUpdateSystem doesn't snap to t=0 when "not playing".
+                if (anim.playing != true)
                 {
-                    anim.playing = desiredPlaying;
-                    if (!anim.playing)
-                        anim.timeSec = 0.0f;
+                    anim.playing = true;
                     changed = true;
                 }
 

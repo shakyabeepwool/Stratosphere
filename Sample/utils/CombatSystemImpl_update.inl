@@ -8,6 +8,13 @@ inline void CombatSystem::update(Engine::ECS::ECSContext &ecs, float dt)
     if (!m_spatial)
         return;
 
+    ++m_frameCounter;
+
+    auto entityKey = [](const Engine::ECS::Entity &e) -> uint64_t
+    {
+        return (static_cast<uint64_t>(e.generation) << 32) | static_cast<uint64_t>(e.index);
+    };
+
     // One-time startup: log config and stagger initial cooldowns
     if (!m_loggedStart)
     {
@@ -107,7 +114,22 @@ inline void CombatSystem::update(Engine::ECS::ECSContext &ecs, float dt)
     if (m_chargeActive)
         promoteUnitsNearClick(ecs, q);
 
-    const float meleeRange2 = m_cfg.meleeRange * m_cfg.meleeRange;
+    const float meleeRange = std::max(0.0f, m_cfg.meleeRange);
+    const float meleeRange2 = meleeRange * meleeRange;
+    const float disengageBuffer = 1.25f; // meters; prevents stop/chase flip-flop near range boundary
+    const float disengageRange = meleeRange + disengageBuffer;
+    const float disengageRange2 = disengageRange * disengageRange;
+
+    auto hashAngle = [](uint32_t v) -> float
+    {
+        v ^= v >> 16;
+        v *= 0x7feb352du;
+        v ^= v >> 15;
+        v *= 0x846ca68bu;
+        v ^= v >> 16;
+        const float u = (v & 0xFFFFFFu) / float(0x1000000u);
+        return u * 6.28318530718f;
+    };
 
     // Clear and alias per-frame buffers
     m_stops.clear();
@@ -157,6 +179,11 @@ inline void CombatSystem::update(Engine::ECS::ECSContext &ecs, float dt)
             const float myX = pos[row].x;
             const float myZ = pos[row].z;
             const uint8_t myTeam = teams[row].id;
+
+            // Persistent combat state (target + engaged hysteresis).
+            const uint64_t selfKey = entityKey(myEntity);
+            UnitCombatMemory &mem = m_unitMem[selfKey];
+            mem.lastSeenFrame = m_frameCounter;
 
             Engine::ECS::Entity bestEnemy{};
             float bestEX = myX;
@@ -253,19 +280,64 @@ inline void CombatSystem::update(Engine::ECS::ECSContext &ecs, float dt)
                     const bool clearVel = (storePtr->moveTargets()[row].active != 0);
                     stops.push_back({myEntity, yaw, clearVel});
                 }
+
+                // Drop target memory if nothing is around.
+                mem.targetEnemy = Engine::ECS::Entity{};
+                mem.engaged = false;
                 continue;
             }
 
-            // Compute facing toward enemy
-            const float dx = bestEX - myX;
-            const float dz = bestEZ - myZ;
+            // Decide whether to keep last target (stickiness) to avoid rapid swapping.
+            Engine::ECS::Entity chosenEnemy = bestEnemy;
+            float chosenEX = bestEX;
+            float chosenEZ = bestEZ;
+            float chosenDist2 = bestDist2;
+
+            if (mem.targetEnemy.valid())
+            {
+                const auto *trec = ecs.entities.find(mem.targetEnemy);
+                if (trec)
+                {
+                    auto *tst = ecs.stores.get(trec->archetypeId);
+                    if (tst && trec->row < tst->size() && tst->hasPosition() && tst->hasHealth() && tst->hasTeam())
+                    {
+                        if (tst->healths()[trec->row].value > 0.0f && tst->teams()[trec->row].id != myTeam)
+                        {
+                            const float tx = tst->positions()[trec->row].x;
+                            const float tz = tst->positions()[trec->row].z;
+                            const float tdx = tx - myX;
+                            const float tdz = tz - myZ;
+                            const float tdist2 = tdx * tdx + tdz * tdz;
+
+                            // Switch only if the new best is significantly closer.
+                            // This reduces ping-pong when two enemies are nearly equidistant.
+                            const float switchFrac = 0.15f;
+                            const bool keepOld = !(bestDist2 < tdist2 * (1.0f - switchFrac));
+                            if (keepOld)
+                            {
+                                chosenEnemy = mem.targetEnemy;
+                                chosenEX = tx;
+                                chosenEZ = tz;
+                                chosenDist2 = tdist2;
+                            }
+                        }
+                    }
+                }
+            }
+
+            mem.targetEnemy = chosenEnemy;
+
+            // Compute facing toward chosen enemy
+            const float dx = chosenEX - myX;
+            const float dz = chosenEZ - myZ;
             const float yaw = (dx * dx + dz * dz > CombatTuning::YAW_DIST2_EPS)
                                   ? std::atan2(dx, dz)
                                   : storePtr->facings()[row].yaw;
 
             // Squared-distance comparison avoids sqrt per entity per frame
-            if (bestDist2 <= meleeRange2)
+            if (mem.engaged ? (chosenDist2 <= disengageRange2) : (chosenDist2 <= meleeRange2))
             {
+                mem.engaged = true;
                 // First melee contact ends the charge phase.
                 if (m_chargeActive)
                     m_chargeActive = false;
@@ -303,19 +375,20 @@ inline void CombatSystem::update(Engine::ECS::ECSContext &ecs, float dt)
                             baseDmg *= m_cfg.critMultiplier;
 
                         // Queue damage on enemy
-                        damages.push_back({bestEnemy, baseDmg});
+                        damages.push_back({chosenEnemy, baseDmg});
 
                         // Queue damage anim on enemy
                         uint32_t dmgClip = CombatAnims::DAMAGE_START +
                                            (m_rng() % (CombatAnims::DAMAGE_END - CombatAnims::DAMAGE_START + 1));
                         // Crits play damage anim faster for visual punch
                         float dmgAnimSpeed = isCrit ? CombatTuning::CRIT_DAMAGE_ANIM_SPEED : CombatTuning::DAMAGE_ANIM_SPEED;
-                        damageAnims.push_back({bestEnemy, dmgClip, dmgAnimSpeed, false});
+                        damageAnims.push_back({chosenEnemy, dmgClip, dmgAnimSpeed, false});
                     }
                 }
             }
             else
             {
+                mem.engaged = false;
                 // Out of range — chase nearest enemy.
                 // During charge, only skip units still on leg 1
                 // (their MoveTarget equals the click point).
@@ -330,12 +403,36 @@ inline void CombatSystem::update(Engine::ECS::ECSContext &ecs, float dt)
                 }
                 if (!skipChase)
                 {
+                    // Aim for a ring point around the enemy to avoid everyone converging
+                    // to the exact same position (classic crowding / jitter trigger).
+                    // This keeps motion stable because the angle is deterministic per unit.
+                    float selfR = 0.0f;
+                    if (storePtr->hasRadius())
+                        selfR = std::max(0.0f, storePtr->radii()[row].r);
+
+                    const float a = hashAngle(static_cast<uint32_t>(myEntity.index));
+                    const float ringR = std::max(0.0f, m_cfg.meleeRange * 0.85f + selfR);
+                    const float offX = std::cos(a) * ringR;
+                    const float offZ = std::sin(a) * ringR;
+
                     moves.push_back({myEntity,
-                                     bestEX, bestEZ, true, yaw,
+                                     chosenEX + offX, chosenEZ + offZ, true, yaw,
                                      CombatAnims::RUN,
                                      anims[row].clipIndex != CombatAnims::RUN});
                 }
             }
+        }
+    }
+
+    // Cleanup unit memory for entities not seen this frame.
+    if (!m_unitMem.empty())
+    {
+        for (auto it = m_unitMem.begin(); it != m_unitMem.end();)
+        {
+            if (it->second.lastSeenFrame != m_frameCounter)
+                it = m_unitMem.erase(it);
+            else
+                ++it;
         }
     }
 

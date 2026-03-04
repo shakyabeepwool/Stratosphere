@@ -231,7 +231,7 @@
             "id": "team_a",
             "unitType": "CombatKnight",
             "team": 0,
-            "count": 2,
+            "count": 20,
             "anchor": "team_a_spawn",
             "offset": {
                 "x": 0.0,
@@ -241,7 +241,7 @@
             "formation": {
                 "kind": "grid",
                 "columns": 5,
-                "spacing_m": 3.0,
+                "spacing_m": 5.0,
                 "jitter_m": 0.2
             }
         },
@@ -249,7 +249,7 @@
             "id": "team_b",
             "unitType": "CombatKnight",
             "team": 1,
-            "count": 2,
+            "count": 20,
             "anchor": "team_b_spawn",
             "offset": {
                 "x": 0.0,
@@ -259,7 +259,7 @@
             "formation": {
                 "kind": "grid",
                 "columns": 5,
-                "spacing_m": 3.0,
+                "spacing_m": 5.0,
                 "jitter_m": 0.2
             }
         }
