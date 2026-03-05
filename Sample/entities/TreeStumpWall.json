@@ -27,6 +27,6 @@
         }
     },
     "visual": {
-        "model": "assets/fence/cerca.smodel"
+        "model": "assets/tree_stump/tree_stump.smodel"
     }
 }
