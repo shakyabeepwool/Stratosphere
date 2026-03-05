@@ -18,11 +18,13 @@ inline void CombatSystem::update(Engine::ECS::ECSContext &ecs, float dt)
     // One-time startup: log config and stagger initial cooldowns
     if (!m_loggedStart)
     {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cout << "[CombatSystem] Active. range=" << m_cfg.meleeRange
                   << " dmg=[" << m_cfg.damageMin << "," << m_cfg.damageMax << "]"
                   << " miss=" << (m_cfg.missChance * 100.0f) << "%"
                   << " crit=" << (m_cfg.critChance * 100.0f) << "%"
                   << " rage=" << (m_cfg.rageMaxBonus * 100.0f) << "%\n";
+#endif
         staggerInitialCooldowns(ecs);
         m_loggedStart = true;
     }

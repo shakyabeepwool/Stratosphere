@@ -218,7 +218,9 @@ namespace Engine
         {
             throw std::runtime_error("Failed to create window surface via GLFW");
         }
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cout << "Vulkan surface created successfully." << std::endl;
+#endif
     }
 
     void VulkanContext::pickPhysicalDeviceForPresentation()
@@ -353,14 +355,14 @@ namespace Engine
 
         // Build device extension list: required + available optional extensions
         std::vector<const char *> enabledExtensions(requiredDeviceExtensions.begin(),
-                                                     requiredDeviceExtensions.end());
+                                                    requiredDeviceExtensions.end());
         {
             uint32_t extCount = 0;
             vkEnumerateDeviceExtensionProperties(m_SelectedDeviceInfo.physicalDevice,
-                                                  nullptr, &extCount, nullptr);
+                                                 nullptr, &extCount, nullptr);
             std::vector<VkExtensionProperties> availableExts(extCount);
             vkEnumerateDeviceExtensionProperties(m_SelectedDeviceInfo.physicalDevice,
-                                                  nullptr, &extCount, availableExts.data());
+                                                 nullptr, &extCount, availableExts.data());
             for (const char *optExt : optionalDeviceExtensions)
             {
                 for (const auto &avail : availableExts)
@@ -387,12 +389,16 @@ namespace Engine
         {
             throw std::runtime_error("Failed to create logical device");
         }
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cout << "Logical device created\n";
+#endif
 
         // Retrieve queue handles
         vkGetDeviceQueue(m_Device, indices.graphicsFamily.value(), 0, &m_GraphicsQueue);
         vkGetDeviceQueue(m_Device, indices.presentFamily.value(), 0, &m_PresentQueue);
 
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cout << "Graphics queue and Present queue retrieved\n";
+#endif
     }
 }

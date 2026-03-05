@@ -17,7 +17,7 @@ namespace Engine
     // ============================================================================
     // Constructor / Destructor
     // ============================================================================
-    
+
     MeshRenderPassModule::~MeshRenderPassModule()
     {
         // Resources cleaned up in onDestroy
@@ -26,13 +26,13 @@ namespace Engine
     // ============================================================================
     // Public setters
     // ============================================================================
-    
-    void MeshRenderPassModule::setCamera(Camera* camera)
+
+    void MeshRenderPassModule::setCamera(Camera *camera)
     {
         m_camera = camera;
     }
 
-    void MeshRenderPassModule::setAssetManager(AssetManager* assetManager)
+    void MeshRenderPassModule::setAssetManager(AssetManager *assetManager)
     {
         m_assetManager = assetManager;
     }
@@ -45,11 +45,11 @@ namespace Engine
     // ============================================================================
     // Lifecycle: onCreate
     // ============================================================================
-    
+
     void MeshRenderPassModule::onCreate(VulkanContext &ctx, VkRenderPass pass, const std::vector<VkFramebuffer> &fbs)
     {
         (void)fbs;
-        
+
         m_device = ctx.GetDevice();
         m_phys = ctx.GetPhysicalDevice();
         m_extent = ctx.GetSwapChain()->GetExtent();
@@ -62,7 +62,9 @@ namespace Engine
         VkResult pr = vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_uploadPool);
         if (pr != VK_SUCCESS)
         {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             fprintf(stderr, "MeshRenderPassModule: failed to create upload pool\n");
+#endif
             m_uploadPool = VK_NULL_HANDLE;
         }
 
@@ -70,7 +72,7 @@ namespace Engine
         size_t materialCount = 0;
         if (m_assetManager && m_modelHandle.isValid())
         {
-            if (ModelAsset* model = m_assetManager->getModel(m_modelHandle))
+            if (ModelAsset *model = m_assetManager->getModel(m_modelHandle))
             {
                 materialCount = model->primitives.size();
             }
@@ -88,17 +90,21 @@ namespace Engine
     // ============================================================================
     // Lifecycle: record
     // ============================================================================
-    
+
     void MeshRenderPassModule::record(FrameContext &frameCtx, VkCommandBuffer cmd)
     {
         (void)frameCtx;
 
-        if (!m_enabled || !m_camera || !m_assetManager) return;
-        if (m_extent.width == 0 || m_extent.height == 0) return;
-        if (!m_modelHandle.isValid()) return;
+        if (!m_enabled || !m_camera || !m_assetManager)
+            return;
+        if (m_extent.width == 0 || m_extent.height == 0)
+            return;
+        if (!m_modelHandle.isValid())
+            return;
 
-        ModelAsset* model = m_assetManager->getModel(m_modelHandle);
-        if (!model || model->primitives.empty()) return;
+        ModelAsset *model = m_assetManager->getModel(m_modelHandle);
+        if (!model || model->primitives.empty())
+            return;
 
         // Update camera UBO
         updateCameraUBO();
@@ -120,7 +126,7 @@ namespace Engine
 
         // Bind camera descriptor (set 0)
         vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
-            0, 1, &m_cameraDescriptorSet, 0, nullptr);
+                                0, 1, &m_cameraDescriptorSet, 0, nullptr);
 
         // Draw each primitive
         for (size_t i = 0; i < model->primitives.size(); ++i)
@@ -132,7 +138,7 @@ namespace Engine
     // ============================================================================
     // Lifecycle: onResize
     // ============================================================================
-    
+
     void MeshRenderPassModule::onResize(VulkanContext &ctx, VkExtent2D newExtent)
     {
         (void)ctx;
@@ -142,7 +148,7 @@ namespace Engine
     // ============================================================================
     // Lifecycle: onDestroy
     // ============================================================================
-    
+
     void MeshRenderPassModule::onDestroy(VulkanContext &ctx)
     {
         (void)ctx;
@@ -152,25 +158,30 @@ namespace Engine
     // ============================================================================
     // Draw single node (primitive)
     // ============================================================================
-    
+
     void MeshRenderPassModule::drawNode(VkCommandBuffer cmd, size_t primitiveIndex)
     {
-        if (!m_assetManager || !m_modelHandle.isValid()) return;
+        if (!m_assetManager || !m_modelHandle.isValid())
+            return;
 
-        ModelAsset* model = m_assetManager->getModel(m_modelHandle);
-        if (!model || primitiveIndex >= model->primitives.size()) return;
+        ModelAsset *model = m_assetManager->getModel(m_modelHandle);
+        if (!model || primitiveIndex >= model->primitives.size())
+            return;
 
-        const auto& prim = model->primitives[primitiveIndex];
-        MeshAsset* mesh = m_assetManager->getMesh(prim.mesh);
-        if (!mesh) return;
+        const auto &prim = model->primitives[primitiveIndex];
+        MeshAsset *mesh = m_assetManager->getMesh(prim.mesh);
+        if (!mesh)
+            return;
 
         VkBuffer vb = mesh->getVertexBuffer();
         VkBuffer ib = mesh->getIndexBuffer();
-        if (vb == VK_NULL_HANDLE || ib == VK_NULL_HANDLE) return;
+        if (vb == VK_NULL_HANDLE || ib == VK_NULL_HANDLE)
+            return;
 
         // Get mesh vertex stride
         uint32_t meshStride = mesh->getVertexStride();
-        if (meshStride == 0) meshStride = 32; // fallback
+        if (meshStride == 0)
+            meshStride = 32; // fallback
 
         // Bind appropriate pipeline for this vertex stride
         auto it = m_pipelines.find(meshStride);
@@ -188,7 +199,7 @@ namespace Engine
         if (primitiveIndex < m_materialDescriptorSets.size())
         {
             vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout,
-                1, 1, &m_materialDescriptorSets[primitiveIndex], 0, nullptr);
+                                    1, 1, &m_materialDescriptorSets[primitiveIndex], 0, nullptr);
         }
 
         // Bind vertex and index buffers
@@ -199,7 +210,7 @@ namespace Engine
         // Compute model matrix (auto-center and auto-scale from AABB)
         glm::mat4 modelMat = computeModelMatrix(mesh);
         vkCmdPushConstants(cmd, m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT,
-            0, sizeof(glm::mat4), &modelMat);
+                           0, sizeof(glm::mat4), &modelMat);
 
         // Draw
         vkCmdDrawIndexed(cmd, prim.indexCount, 1, prim.firstIndex, prim.vertexOffset, 0);
@@ -208,7 +219,7 @@ namespace Engine
     // ============================================================================
     // Descriptor layouts
     // ============================================================================
-    
+
     void MeshRenderPassModule::createDescriptorLayouts()
     {
         // Set 0: Camera UBO
@@ -231,7 +242,7 @@ namespace Engine
 
         // Set 1: Material UBO + 5 textures
         std::vector<VkDescriptorSetLayoutBinding> matBindings(6);
-        
+
         matBindings[0].binding = 0;
         matBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         matBindings[0].descriptorCount = 1;
@@ -260,10 +271,11 @@ namespace Engine
     // ============================================================================
     // Descriptor pool
     // ============================================================================
-    
+
     void MeshRenderPassModule::createDescriptorPool(size_t materialCount)
     {
-        if (materialCount == 0) materialCount = 1;
+        if (materialCount == 0)
+            materialCount = 1;
 
         std::vector<VkDescriptorPoolSize> poolSizes(2);
         poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -287,7 +299,7 @@ namespace Engine
     // ============================================================================
     // Camera UBO
     // ============================================================================
-    
+
     void MeshRenderPassModule::createCameraUBO()
     {
         VkBufferCreateInfo bufInfo{};
@@ -309,7 +321,7 @@ namespace Engine
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = memReq.size;
         allocInfo.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         r = vkAllocateMemory(m_device, &allocInfo, nullptr, &m_cameraUBOMemory);
         if (r != VK_SUCCESS)
@@ -367,10 +379,11 @@ namespace Engine
     // ============================================================================
     // Update camera UBO
     // ============================================================================
-    
+
     void MeshRenderPassModule::updateCameraUBO()
     {
-        if (!m_camera || !m_cameraUBOMapped) return;
+        if (!m_camera || !m_cameraUBOMapped)
+            return;
 
         struct CameraUBO
         {
@@ -391,7 +404,7 @@ namespace Engine
     // ============================================================================
     // Dummy texture
     // ============================================================================
-    
+
     void MeshRenderPassModule::createDummyTexture(VulkanContext &ctx)
     {
         // Create 1x1 white texture
@@ -420,7 +433,7 @@ namespace Engine
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = memReq.size;
         allocInfo.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         r = vkAllocateMemory(m_device, &allocInfo, nullptr, &m_dummyImageMemory);
         if (r != VK_SUCCESS)
@@ -431,7 +444,7 @@ namespace Engine
         vkBindImageMemory(m_device, m_dummyImage, m_dummyImageMemory, 0);
 
         // Write white pixel
-        void* p = nullptr;
+        void *p = nullptr;
         vkMapMemory(m_device, m_dummyImageMemory, 0, VK_WHOLE_SIZE, 0, &p);
         uint8_t white[4] = {255, 255, 255, 255};
         std::memcpy(p, white, 4);
@@ -459,9 +472,9 @@ namespace Engine
                 barrier.subresourceRange.layerCount = 1;
 
                 vkCmdPipelineBarrier(upload.cmd,
-                    VK_PIPELINE_STAGE_HOST_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    0, 0, nullptr, 0, nullptr, 1, &barrier);
+                                     VK_PIPELINE_STAGE_HOST_BIT,
+                                     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                     0, 0, nullptr, 0, nullptr, 1, &barrier);
 
                 Engine::EndSubmitAndWait(upload);
             }
@@ -509,19 +522,19 @@ namespace Engine
     // ============================================================================
     // Create pipelines for all vertex strides in model
     // ============================================================================
-    
+
     void MeshRenderPassModule::createPipelinesForModel(VulkanContext &ctx, VkRenderPass pass)
     {
         // Collect unique vertex strides from model
         std::unordered_set<uint32_t> strides;
-        
+
         if (m_assetManager && m_modelHandle.isValid())
         {
-            if (ModelAsset* model = m_assetManager->getModel(m_modelHandle))
+            if (ModelAsset *model = m_assetManager->getModel(m_modelHandle))
             {
-                for (const auto& prim : model->primitives)
+                for (const auto &prim : model->primitives)
                 {
-                    MeshAsset* mesh = m_assetManager->getMesh(prim.mesh);
+                    MeshAsset *mesh = m_assetManager->getMesh(prim.mesh);
                     if (mesh)
                     {
                         uint32_t stride = mesh->getVertexStride();
@@ -559,9 +572,9 @@ namespace Engine
 
         // Load shaders once
         VkShaderModule vert = Pipeline::createShaderModuleFromFile(ctx.GetDevice(),
-            "C:\\Users\\user\\Desktop\\Stratosphere\\Engine\\shaders\\mesh.vert.spv");
+                                                                   "C:\\Users\\user\\Desktop\\Stratosphere\\Engine\\shaders\\mesh.vert.spv");
         VkShaderModule frag = Pipeline::createShaderModuleFromFile(ctx.GetDevice(),
-            "C:\\Users\\user\\Desktop\\Stratosphere\\Engine\\shaders\\mesh.frag.spv");
+                                                                   "C:\\Users\\user\\Desktop\\Stratosphere\\Engine\\shaders\\mesh.frag.spv");
 
         if (vert == VK_NULL_HANDLE || frag == VK_NULL_HANDLE)
         {
@@ -659,7 +672,7 @@ namespace Engine
             pci.dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
             // Create pipeline in map
-            auto& pipelineRef = m_pipelines[stride];
+            auto &pipelineRef = m_pipelines[stride];
             r = pipelineRef.create(pci);
             if (r != VK_SUCCESS)
             {
@@ -674,17 +687,19 @@ namespace Engine
     // ============================================================================
     // Create material descriptors
     // ============================================================================
-    
+
     void MeshRenderPassModule::createMaterialDescriptors()
     {
         m_materialDescriptorSets.clear();
         m_materialUBOs.clear();
         m_materialUBOMemories.clear();
 
-        if (!m_modelHandle.isValid() || !m_assetManager) return;
+        if (!m_modelHandle.isValid() || !m_assetManager)
+            return;
 
-        ModelAsset* model = m_assetManager->getModel(m_modelHandle);
-        if (!model || model->primitives.empty()) return;
+        ModelAsset *model = m_assetManager->getModel(m_modelHandle);
+        if (!model || model->primitives.empty())
+            return;
 
         std::vector<VkDescriptorSetLayout> layouts(model->primitives.size(), m_materialSetLayout);
         std::vector<VkDescriptorSet> descriptorSets(model->primitives.size());
@@ -696,12 +711,13 @@ namespace Engine
         allocInfo.pSetLayouts = layouts.data();
 
         VkResult r = vkAllocateDescriptorSets(m_device, &allocInfo, descriptorSets.data());
-        if (r != VK_SUCCESS) return;
+        if (r != VK_SUCCESS)
+            return;
 
         for (size_t i = 0; i < model->primitives.size(); ++i)
         {
-            const auto& prim = model->primitives[i];
-            MaterialAsset* mat = m_assetManager->getMaterial(prim.material);
+            const auto &prim = model->primitives[i];
+            MaterialAsset *mat = m_assetManager->getMaterial(prim.material);
 
             // Create material UBO
             VkBuffer ubo = VK_NULL_HANDLE;
@@ -721,7 +737,7 @@ namespace Engine
             memAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
             memAllocInfo.allocationSize = memReq.size;
             memAllocInfo.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
             vkAllocateMemory(m_device, &memAllocInfo, nullptr, &uboMem);
             vkBindBufferMemory(m_device, ubo, uboMem, 0);
 
@@ -752,7 +768,7 @@ namespace Engine
             uboData.pad[0] = 0.0f;
             uboData.pad[1] = 0.0f;
 
-            void* data = nullptr;
+            void *data = nullptr;
             vkMapMemory(m_device, uboMem, 0, sizeof(MaterialUBO), 0, &data);
             std::memcpy(data, &uboData, sizeof(MaterialUBO));
             vkUnmapMemory(m_device, uboMem);
@@ -784,14 +800,13 @@ namespace Engine
                 mat ? mat->normalTexture : TextureHandle{},
                 mat ? mat->metallicRoughnessTexture : TextureHandle{},
                 mat ? mat->occlusionTexture : TextureHandle{},
-                mat ? mat->emissiveTexture : TextureHandle{}
-            };
+                mat ? mat->emissiveTexture : TextureHandle{}};
 
             for (int t = 0; t < 5; ++t)
             {
                 imageInfos[t].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-                TextureAsset* tex = texHandles[t].isValid() ? m_assetManager->getTexture(texHandles[t]) : nullptr;
+                TextureAsset *tex = texHandles[t].isValid() ? m_assetManager->getTexture(texHandles[t]) : nullptr;
                 if (tex && tex->getView() != VK_NULL_HANDLE)
                 {
                     imageInfos[t].imageView = tex->getView();
@@ -822,11 +837,11 @@ namespace Engine
     // ============================================================================
     // Compute model matrix
     // ============================================================================
-    
-    glm::mat4 MeshRenderPassModule::computeModelMatrix(MeshAsset* mesh)
+
+    glm::mat4 MeshRenderPassModule::computeModelMatrix(MeshAsset *mesh)
     {
-        const float* aabbMin = mesh->getAABBMin();
-        const float* aabbMax = mesh->getAABBMax();
+        const float *aabbMin = mesh->getAABBMin();
+        const float *aabbMax = mesh->getAABBMax();
 
         if (aabbMin && aabbMax)
         {
@@ -849,7 +864,7 @@ namespace Engine
     // ============================================================================
     // Cleanup
     // ============================================================================
-    
+
     void MeshRenderPassModule::cleanupResources()
     {
         // Material UBOs
@@ -871,7 +886,7 @@ namespace Engine
         }
 
         // Pipelines
-        for (auto& kv : m_pipelines)
+        for (auto &kv : m_pipelines)
         {
             kv.second.destroy(m_device);
         }
@@ -946,7 +961,7 @@ namespace Engine
     // ============================================================================
     // Helper: find memory type
     // ============================================================================
-    
+
     uint32_t MeshRenderPassModule::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const
     {
         VkPhysicalDeviceMemoryProperties memProps;

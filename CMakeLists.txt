@@ -17,6 +17,13 @@ if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type" FORCE)
 endif()
 
+# Production build flag (used to compile out console logging)
+#  - Release / MinSizeRel => ENGINE_PRODUCTION=1
+#  - everything else       => ENGINE_PRODUCTION=0
+add_compile_definitions(
+  ENGINE_PRODUCTION=$<IF:$<OR:$<CONFIG:Release>,$<CONFIG:MinSizeRel>>,1,0>
+)
+
 # Make FetchContent available
 include(FetchContent)
 

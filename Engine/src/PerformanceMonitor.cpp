@@ -32,7 +32,7 @@ namespace Engine
     // Helpers (Windows)
     // -----------------------------------------------------------------------
 #ifdef _WIN32
-    static uint64_t fileTimeToU64(const FILETIME& ft)
+    static uint64_t fileTimeToU64(const FILETIME &ft)
     {
         return (static_cast<uint64_t>(ft.dwHighDateTime) << 32) | ft.dwLowDateTime;
     }
@@ -62,8 +62,7 @@ namespace Engine
     // Ctor / Dtor
     // -----------------------------------------------------------------------
     PerformanceMonitor::PerformanceMonitor()
-        : m_frameStart(Clock::now())
-        , m_lastFrameEnd(Clock::now())
+        : m_frameStart(Clock::now()), m_lastFrameEnd(Clock::now())
     {
     }
 
@@ -75,7 +74,7 @@ namespace Engine
     // -----------------------------------------------------------------------
     // Init / Cleanup
     // -----------------------------------------------------------------------
-    void PerformanceMonitor::init(VulkanContext* ctx, Renderer* renderer, Window* window)
+    void PerformanceMonitor::init(VulkanContext *ctx, Renderer *renderer, Window *window)
     {
         m_ctx = ctx;
         m_renderer = renderer;
@@ -97,7 +96,8 @@ namespace Engine
     // -----------------------------------------------------------------------
     void PerformanceMonitor::querySystemInfo()
     {
-        if (!m_ctx) return;
+        if (!m_ctx)
+            return;
 
         // --- GPU name from Vulkan ---
         VkPhysicalDeviceProperties props{};
@@ -131,9 +131,17 @@ namespace Engine
             }
         }
         if (m_hasMemoryBudget)
+        {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cout << "[PerfMon] VK_EXT_memory_budget available — cross-platform VRAM tracking enabled\n";
+#endif
+        }
         else
+        {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cout << "[PerfMon] VK_EXT_memory_budget not available — VRAM usage will show N/A\n";
+#endif
+        }
 
         // Do an initial VRAM query to get total from budget
         queryVramViaVulkan();
@@ -143,9 +151,9 @@ namespace Engine
         FILETIME idle, kernel, user;
         if (GetSystemTimes(&idle, &kernel, &user))
         {
-            m_prevIdleTime   = fileTimeToU64(idle);
+            m_prevIdleTime = fileTimeToU64(idle);
             m_prevKernelTime = fileTimeToU64(kernel);
-            m_prevUserTime   = fileTimeToU64(user);
+            m_prevUserTime = fileTimeToU64(user);
         }
 #elif defined(__linux__)
         // Seed /proc/stat CPU tracking
@@ -158,7 +166,7 @@ namespace Engine
             std::string cpu;
             uint64_t userT, nice, system, idle, iowait, irq, softirq, steal;
             iss >> cpu >> userT >> nice >> system >> idle >> iowait >> irq >> softirq >> steal;
-            m_prevCpuIdle  = idle + iowait;
+            m_prevCpuIdle = idle + iowait;
             m_prevCpuTotal = userT + nice + system + idle + iowait + irq + softirq + steal;
         }
 #endif
@@ -183,17 +191,17 @@ namespace Engine
 
         // Sum device-local heaps
         VkDeviceSize totalBudget = 0;
-        VkDeviceSize totalUsage  = 0;
+        VkDeviceSize totalUsage = 0;
         for (uint32_t i = 0; i < memProps2.memoryProperties.memoryHeapCount; i++)
         {
             if (memProps2.memoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
             {
                 totalBudget += budgetProps.heapBudget[i];
-                totalUsage  += budgetProps.heapUsage[i];
+                totalUsage += budgetProps.heapUsage[i];
             }
         }
 
-        m_vramUsedMB  = static_cast<float>(totalUsage)  / (1024.0f * 1024.0f);
+        m_vramUsedMB = static_cast<float>(totalUsage) / (1024.0f * 1024.0f);
         // Keep m_vramTotalMB as the physical GPU VRAM (set once in querySystemInfo)
     }
 
@@ -212,14 +220,14 @@ namespace Engine
             FILETIME idle, kernel, user;
             if (GetSystemTimes(&idle, &kernel, &user))
             {
-                uint64_t curIdle   = fileTimeToU64(idle);
+                uint64_t curIdle = fileTimeToU64(idle);
                 uint64_t curKernel = fileTimeToU64(kernel);
-                uint64_t curUser   = fileTimeToU64(user);
+                uint64_t curUser = fileTimeToU64(user);
 
-                uint64_t idleDiff   = curIdle   - m_prevIdleTime;
+                uint64_t idleDiff = curIdle - m_prevIdleTime;
                 uint64_t kernelDiff = curKernel - m_prevKernelTime;
-                uint64_t userDiff   = curUser   - m_prevUserTime;
-                uint64_t totalSys   = kernelDiff + userDiff;
+                uint64_t userDiff = curUser - m_prevUserTime;
+                uint64_t totalSys = kernelDiff + userDiff;
 
                 if (totalSys > 0)
                 {
@@ -227,9 +235,9 @@ namespace Engine
                         (1.0f - static_cast<float>(idleDiff) / static_cast<float>(totalSys)) * 100.0f;
                 }
 
-                m_prevIdleTime   = curIdle;
+                m_prevIdleTime = curIdle;
                 m_prevKernelTime = curKernel;
-                m_prevUserTime   = curUser;
+                m_prevUserTime = curUser;
             }
         }
 
@@ -256,11 +264,11 @@ namespace Engine
                 uint64_t userT, nice, system, idle, iowait, irq, softirq, steal;
                 iss >> cpu >> userT >> nice >> system >> idle >> iowait >> irq >> softirq >> steal;
 
-                uint64_t curIdle  = idle + iowait;
+                uint64_t curIdle = idle + iowait;
                 uint64_t curTotal = userT + nice + system + idle + iowait + irq + softirq + steal;
 
                 uint64_t totalDiff = curTotal - m_prevCpuTotal;
-                uint64_t idleDiff  = curIdle  - m_prevCpuIdle;
+                uint64_t idleDiff = curIdle - m_prevCpuIdle;
 
                 if (totalDiff > 0)
                 {
@@ -269,7 +277,7 @@ namespace Engine
                 }
 
                 m_prevCpuTotal = curTotal;
-                m_prevCpuIdle  = curIdle;
+                m_prevCpuIdle = curIdle;
             }
         }
 
@@ -310,10 +318,10 @@ namespace Engine
                 uint64_t totalUser = 0, totalSystem = 0, totalIdle = 0, totalNice = 0;
                 for (natural_t i = 0; i < numCPUs; i++)
                 {
-                    totalUser   += cpuInfo[CPU_STATE_MAX * i + CPU_STATE_USER];
+                    totalUser += cpuInfo[CPU_STATE_MAX * i + CPU_STATE_USER];
                     totalSystem += cpuInfo[CPU_STATE_MAX * i + CPU_STATE_SYSTEM];
-                    totalIdle   += cpuInfo[CPU_STATE_MAX * i + CPU_STATE_IDLE];
-                    totalNice   += cpuInfo[CPU_STATE_MAX * i + CPU_STATE_NICE];
+                    totalIdle += cpuInfo[CPU_STATE_MAX * i + CPU_STATE_IDLE];
+                    totalNice += cpuInfo[CPU_STATE_MAX * i + CPU_STATE_NICE];
                 }
                 uint64_t total = totalUser + totalSystem + totalIdle + totalNice;
                 if (total > 0)
@@ -356,14 +364,14 @@ namespace Engine
     void PerformanceMonitor::endFrame()
     {
         auto now = Clock::now();
-        
+
         // Calculate frame time
         float frameTimeMs = std::chrono::duration<float, std::milli>(now - m_lastFrameEnd).count();
         m_lastFrameEnd = now;
-        
+
         // CPU time is the time spent between beginFrame and endFrame
         m_cpuTimeMs = std::chrono::duration<float, std::milli>(now - m_frameStart).count();
-        
+
         // Store frame time in history
         m_frameTimeHistory.push_back(frameTimeMs);
         if (m_frameTimeHistory.size() > HISTORY_SIZE)
@@ -381,11 +389,11 @@ namespace Engine
         }
 
         // Apply EMA (Exponential Moving Average) smoothing for display values
-        m_smoothedFrameTimeMs = EMA_SMOOTHING_FACTOR * frameTimeMs + 
+        m_smoothedFrameTimeMs = EMA_SMOOTHING_FACTOR * frameTimeMs +
                                 (1.0f - EMA_SMOOTHING_FACTOR) * m_smoothedFrameTimeMs;
-        m_smoothedCpuTimeMs = EMA_SMOOTHING_FACTOR * m_cpuTimeMs + 
+        m_smoothedCpuTimeMs = EMA_SMOOTHING_FACTOR * m_cpuTimeMs +
                               (1.0f - EMA_SMOOTHING_FACTOR) * m_smoothedCpuTimeMs;
-        m_smoothedGpuTimeMs = EMA_SMOOTHING_FACTOR * m_gpuTimeMs + 
+        m_smoothedGpuTimeMs = EMA_SMOOTHING_FACTOR * m_gpuTimeMs +
                               (1.0f - EMA_SMOOTHING_FACTOR) * m_smoothedGpuTimeMs;
 
         // Update FPS metrics periodically (100ms)
@@ -406,7 +414,7 @@ namespace Engine
             m_smoothedVramUsedMB = EMA_SMOOTHING_FACTOR * m_vramUsedMB +
                                    (1.0f - EMA_SMOOTHING_FACTOR) * m_smoothedVramUsedMB;
             m_smoothedCpuUsagePercent = EMA_SMOOTHING_FACTOR * m_cpuUsagePercent +
-                                       (1.0f - EMA_SMOOTHING_FACTOR) * m_smoothedCpuUsagePercent;
+                                        (1.0f - EMA_SMOOTHING_FACTOR) * m_smoothedCpuUsagePercent;
             m_sysUpdateTimer = 0.0f;
         }
 
@@ -502,7 +510,7 @@ namespace Engine
             return;
 
         // Set up overlay window flags
-        ImGuiWindowFlags windowFlags = 
+        ImGuiWindowFlags windowFlags =
             ImGuiWindowFlags_NoDecoration |
             ImGuiWindowFlags_AlwaysAutoResize |
             ImGuiWindowFlags_NoSavedSettings |
@@ -512,7 +520,7 @@ namespace Engine
 
         // Position in top-right corner with padding
         const float padding = 10.0f;
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        const ImGuiViewport *viewport = ImGui::GetMainViewport();
         ImVec2 workPos = viewport->WorkPos;
         ImVec2 workSize = viewport->WorkSize;
         ImVec2 windowPos(workPos.x + workSize.x - padding, workPos.y + padding);
@@ -541,7 +549,7 @@ namespace Engine
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.4f, 1.0f));
             ImGui::Text("FPS");
             ImGui::PopStyleColor();
-            
+
             // Color-code FPS based on performance
             ImVec4 fpsColor;
             if (m_avgFPS >= 60.0f)
@@ -565,7 +573,7 @@ namespace Engine
             ImGui::PopStyleColor();
             ImGui::Text("  Frame: %.2f ms", m_smoothedFrameTimeMs);
             ImGui::Text("  CPU:   %.2f ms", m_smoothedCpuTimeMs);
-            
+
             if (m_gpuTimeMs > 0.0f)
             {
                 ImGui::Text("  GPU:   %.2f ms", m_smoothedGpuTimeMs);

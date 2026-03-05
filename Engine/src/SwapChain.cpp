@@ -98,7 +98,9 @@ namespace Engine
         createImageViews();
 
         // If replacing an old swapchain, cleanup the old one (vkDestroySwapchainKHR must be handled by caller or here if oldSwapchain used)
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cout << "SwapChain initialized: images=" << m_Images.size() << " format=" << m_ImageFormat << "\n";
+#endif
     }
 
     void SwapChain::Cleanup()

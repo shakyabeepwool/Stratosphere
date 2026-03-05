@@ -24,8 +24,10 @@ inline void CombatSystem::issueClickTargets(Engine::ECS::ECSContext &ecs,
             ecs.markDirty(m_moveTargetId, aid, r);
         }
     }
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
     std::cout << "[CombatSystem] Leg-1: all units → click point ("
               << m_battleClickX << "," << m_battleClickZ << ")\n";
+#endif
 }
 
 inline void CombatSystem::promoteUnitsNearClick(Engine::ECS::ECSContext &ecs,

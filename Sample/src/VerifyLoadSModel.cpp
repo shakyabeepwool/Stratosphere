@@ -19,31 +19,43 @@ namespace Sample
     {
         if (!modelPath)
         {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cerr << "[SMODEL] VerifyLoadSModel: modelPath is null\n";
+#endif
             return {};
         }
 
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cout << "\n[SMODEL] Loading: " << modelPath << "\n";
+#endif
 
         Engine::ModelHandle modelHandle = assets.loadModel(modelPath);
         if (!modelHandle.isValid())
         {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cerr << "[SMODEL] loadModel failed: " << modelPath << "\n";
+#endif
             return {};
         }
 
         Engine::ModelAsset *model = assets.getModel(modelHandle);
         if (!model)
         {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cerr << "[SMODEL] getModel returned nullptr\n";
+#endif
             return {};
         }
 
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cout << "[SMODEL] OK primitives=" << model->primitives.size() << "\n";
+#endif
 
         if (model->primitives.empty())
         {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cerr << "[SMODEL] Model has 0 primitives (unexpected)\n";
+#endif
             return modelHandle;
         }
 
@@ -55,40 +67,52 @@ namespace Sample
             Engine::MeshAsset *mesh = assets.getMesh(prim.mesh);
             if (!mesh)
             {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
                 std::cerr << "[SMODEL] Primitive " << i << ": mesh resolve failed\n";
+#endif
                 continue;
             }
 
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cout << "  Prim[" << i << "] Mesh OK"
                       << " indices=" << prim.indexCount
                       << " vb=" << (void *)mesh->getVertexBuffer()
                       << " ib=" << (void *)mesh->getIndexBuffer()
                       << "\n";
+#endif
 
             Engine::MaterialAsset *mat = assets.getMaterial(prim.material);
             if (!mat)
             {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
                 std::cout << "           Material: (missing)\n";
+#endif
                 continue;
             }
 
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cout << "           Material OK"
                       << " baseColor=("
                       << mat->baseColorFactor[0] << ", "
                       << mat->baseColorFactor[1] << ", "
                       << mat->baseColorFactor[2] << ", "
                       << mat->baseColorFactor[3] << ")\n";
+#endif
 
             // Optional: verify textures resolve
             if (mat->baseColorTexture.isValid())
             {
                 Engine::TextureAsset *tex = assets.getTexture(mat->baseColorTexture);
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
                 std::cout << "           BaseColorTex: " << (tex ? "OK" : "FAILED") << "\n";
+#endif
             }
             if (mat->normalTexture.isValid())
             {
                 Engine::TextureAsset *tex = assets.getTexture(mat->normalTexture);
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
                 std::cout << "           NormalTex: " << (tex ? "OK" : "FAILED") << "\n";
+#endif
             }
         }
 

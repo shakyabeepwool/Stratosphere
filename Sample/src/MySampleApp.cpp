@@ -731,29 +731,39 @@ void MySampleApp::setupECSFromPrefabs()
             const std::string jsonText = Engine::ECS::readFileText(path);
             if (jsonText.empty())
             {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
                 std::cerr << "[Prefab] Failed to read: " << path << "\n";
+#endif
                 continue;
             }
             Engine::ECS::Prefab p = Engine::ECS::loadPrefabFromJson(jsonText, ecs.components, ecs.archetypes, *m_assets);
             if (p.name.empty())
             {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
                 std::cerr << "[Prefab] Missing name in: " << path << "\n";
+#endif
                 continue;
             }
             ecs.prefabs.add(p);
             ++prefabCount;
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cout << "[Prefab] Loaded " << p.name << " from " << path << "\n";
+#endif
         }
     }
     catch (const std::exception &e)
     {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cerr << "[Prefab] Failed to enumerate entities/: " << e.what() << "\n";
+#endif
         return;
     }
 
     if (prefabCount == 0)
     {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cerr << "[Prefab] No prefabs loaded from entities/*.json\n";
+#endif
         return;
     }
 
@@ -803,7 +813,9 @@ void MySampleApp::setupECSFromPrefabs()
                     cfg.staggerMax = c["staggerMax"].get<float>();
                 m_systems.GetCombatSystemMut().applyConfig(cfg);
                 m_systems.GetCombatSystemMut().setHumanTeam(0); // Team A = human player
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
                 std::cout << "[Config] Combat config loaded from BattleConfig.json\n";
+#endif
             }
 
             // Load start zone (click here to begin battle)
@@ -814,14 +826,18 @@ void MySampleApp::setupECSFromPrefabs()
                 m_startZoneZ = sz.value("z", 0.0f);
                 m_startZoneRadius = sz.value("radius", 10.0f);
                 m_hasStartZone = true;
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
                 std::cout << "[Config] Start zone at (" << m_startZoneX << "," << m_startZoneZ
                           << ") r=" << m_startZoneRadius << "\n";
+#endif
             }
         }
     }
     catch (const std::exception &e)
     {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cerr << "[Config] Failed to parse combat config: " << e.what() << "\n";
+#endif
     }
 }
 

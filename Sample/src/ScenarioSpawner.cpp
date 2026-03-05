@@ -141,7 +141,9 @@ namespace Sample
         const std::string text = Engine::ECS::readFileText(scenarioPath);
         if (text.empty())
         {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cerr << "[Scenario] Failed to read " << scenarioPath << " next to executable\n";
+#endif
             return 0;
         }
 
@@ -152,16 +154,22 @@ namespace Sample
         }
         catch (const std::exception &e)
         {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cerr << "[Scenario] JSON parse error: " << e.what() << "\n";
+#endif
             return 0;
         }
 
         const std::string scenarioName = j.value("name", std::string("(unnamed)"));
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cout << "[Scenario] Loading: " << scenarioName << "\n";
+#endif
 
         if (!j.contains("spawnGroups") || !j["spawnGroups"].is_array())
         {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cerr << "[Scenario] Missing spawnGroups[]\n";
+#endif
             return 0;
         }
 
@@ -182,7 +190,9 @@ namespace Sample
                 const Engine::ECS::Prefab *prefab = ecs.prefabs.get(prefabName);
                 if (!prefab)
                 {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
                     std::cerr << "[Scenario] Missing obstacle prefab: " << prefabName << "\n";
+#endif
                     continue;
                 }
 
@@ -297,14 +307,18 @@ namespace Sample
 
             if (sg.unitType.empty() || sg.count <= 0)
             {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
                 std::cerr << "[Scenario] Skipping group id=" << sg.id << " (missing unitType or count)\n";
+#endif
                 continue;
             }
 
             const Engine::ECS::Prefab *prefab = ecs.prefabs.get(sg.unitType);
             if (!prefab)
             {
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
                 std::cerr << "[Scenario] Missing prefab for unitType=" << sg.unitType << " (group=" << sg.id << ")\n";
+#endif
                 continue;
             }
 
@@ -313,6 +327,7 @@ namespace Sample
             std::mt19937 rng(static_cast<uint32_t>(std::hash<std::string>{}(sg.id)));
             std::uniform_real_distribution<float> jitter(-sg.jitterM, sg.jitterM);
 
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
             std::cout << "[Scenario] Spawn group id=" << sg.id
                       << " unitType=" << sg.unitType
                       << " count=" << sg.count
@@ -320,6 +335,7 @@ namespace Sample
                       << " formation=" << sg.formationKind
                       << " spacingM=" << spacingM
                       << " jitterM=" << sg.jitterM << "\n";
+#endif
 
             const uint32_t positionId = ecs.components.ensureId("Position");
             const uint32_t facingId = ecs.components.ensureId("Facing");
@@ -374,7 +390,9 @@ namespace Sample
             }
         }
 
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cout << "[Scenario] Total units spawned: " << totalSpawned << "\n";
+#endif
         return totalSpawned;
     }
 }

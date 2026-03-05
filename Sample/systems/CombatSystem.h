@@ -130,14 +130,18 @@ public:
         m_chargeIssued = false;
         m_battleClickX = clickX;
         m_battleClickZ = clickZ;
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cout << "[CombatSystem] Battle started! Click=(" << clickX << "," << clickZ << ")\n";
+#endif
     }
     void startBattle()
     {
         m_battleStarted = true;
         m_chargeActive = false;
         m_chargeIssued = false;
+#if !defined(ENGINE_PRODUCTION) || !ENGINE_PRODUCTION
         std::cout << "[CombatSystem] Battle started!\n";
+#endif
     }
     bool isBattleStarted() const { return m_battleStarted; }
 
